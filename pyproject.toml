@@ -79,6 +79,7 @@ branch = true
 omit = [
     "fsspec_pydantic/tests/integration/",
 ]
+
 [tool.coverage.report]
 exclude_also = [
     "raise NotImplementedError",
