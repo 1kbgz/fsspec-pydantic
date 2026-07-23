@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path as BasePath
-from typing import Annotated, Any, Literal, Optional, Union
+from typing import Annotated, Any, Literal
 
 from fsspec import get_fs_token_paths
 from fsspec.implementations.local import AbstractFileSystem
@@ -10,10 +10,10 @@ from pydantic_core import CoreSchema
 from pydantic_core.core_schema import any_schema, no_info_after_validator_function, plain_serializer_function_ser_schema
 
 __all__ = (
+    "DirectoryPath",
+    "FilePath",
     "FileSystem",
     "Path",
-    "FilePath",
-    "DirectoryPath",
 )
 
 
@@ -39,7 +39,7 @@ class FSSpecFilesystemType:
         return field_schema
 
     @staticmethod
-    def _validate(value: Union[AbstractFileSystem, str]) -> "FSSpecFilesystemType":
+    def _validate(value: AbstractFileSystem | str) -> "FSSpecFilesystemType":
         if isinstance(value, AbstractFileSystem):
             return value
         fs, _, _ = get_fs_token_paths(value)
@@ -60,7 +60,7 @@ class Path:
     path: BasePath
     type: PathType
 
-    def __init__(self, fs: Union[AbstractFileSystem, str], path: Optional[BasePath] = None, type: PathType = None) -> "Path":
+    def __init__(self, fs: AbstractFileSystem | str, path: BasePath | None = None, type: PathType = None) -> "Path":
         if isinstance(fs, str):
             self.fs, _, paths = get_fs_token_paths(fs)
             self.path = BasePath(paths[0])
@@ -85,7 +85,7 @@ class Path:
         return FilePath(fs=self.fs, path=self.path.resolve())
 
     def __repr__(self) -> str:
-        return f"{'DirectoryPath' if self.type == 'fsspec-dir' else 'FilePath'}(fs={self.fs.unstrip_protocol('')}, path={str(self.path)})"
+        return f"{'DirectoryPath' if self.type == 'fsspec-dir' else 'FilePath'}(fs={self.fs.unstrip_protocol('')}, path={self.path!s})"
 
     def __str__(self) -> str:
         return self.fs.unstrip_protocol(self.path.as_posix())
