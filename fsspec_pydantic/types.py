@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path as BasePath
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, TypeAlias
 
 from fsspec import get_fs_token_paths
 from fsspec.implementations.local import AbstractFileSystem
@@ -39,18 +39,18 @@ class FSSpecFilesystemType:
         return field_schema
 
     @staticmethod
-    def _validate(value: AbstractFileSystem | str) -> "FSSpecFilesystemType":
+    def _validate(value: AbstractFileSystem | str) -> AbstractFileSystem:
         if isinstance(value, AbstractFileSystem):
             return value
         fs, _, _ = get_fs_token_paths(value)
         return fs
 
     @staticmethod
-    def _serialize(value: "FSSpecFilesystemType") -> str:
+    def _serialize(value: AbstractFileSystem) -> str:
         return value.unstrip_protocol("")
 
 
-FileSystem = Annotated[AbstractFileSystem, FSSpecFilesystemType]
+FileSystem: TypeAlias = Annotated[AbstractFileSystem, FSSpecFilesystemType]
 PathType = Literal["fsspec-file", "fsspec-dir"]
 
 
@@ -60,7 +60,7 @@ class Path:
     path: BasePath
     type: PathType
 
-    def __init__(self, fs: AbstractFileSystem | str, path: BasePath | None = None, type: PathType = None) -> "Path":
+    def __init__(self, fs: AbstractFileSystem | str, path: BasePath | None = None, type: PathType | None = None) -> None:
         if isinstance(fs, str):
             self.fs, _, paths = get_fs_token_paths(fs)
             self.path = BasePath(paths[0])
@@ -70,6 +70,8 @@ class Path:
                 self.type = "fsspec-file"
         else:
             self.fs = fs
+            if path is None:
+                raise TypeError("path is required when fs is a filesystem instance")
             self.path = BasePath(path)
             self.type = type if type else "fsspec-dir" if fs.isdir(path) else "fsspec-file"
 
@@ -80,9 +82,7 @@ class Path:
         return self.type == "fsspec-file"
 
     def resolve(self) -> "Path":
-        if self.fs.isdir(self.path):
-            return DirectoryPath(fs=self.fs, path=self.path.resolve())
-        return FilePath(fs=self.fs, path=self.path.resolve())
+        return Path(fs=self.fs, path=self.path.resolve())
 
     def __repr__(self) -> str:
         return f"{'DirectoryPath' if self.type == 'fsspec-dir' else 'FilePath'}(fs={self.fs.unstrip_protocol('')}, path={self.path!s})"
@@ -90,7 +90,7 @@ class Path:
     def __str__(self) -> str:
         return self.fs.unstrip_protocol(self.path.as_posix())
 
-    def __hash__(self) -> str:
+    def __hash__(self) -> int:
         return hash(str(self))
 
     def __lt__(self, other) -> bool:
@@ -155,5 +155,5 @@ class FSSpecPathType:
         return str(value)
 
 
-FilePath = Annotated[Path, FSSpecPathType(path_type="file")]
-DirectoryPath = Annotated[Path, FSSpecPathType(path_type="dir")]
+FilePath: TypeAlias = Annotated[Path, FSSpecPathType(path_type="fsspec-file")]
+DirectoryPath: TypeAlias = Annotated[Path, FSSpecPathType(path_type="fsspec-dir")]
