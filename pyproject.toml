@@ -141,3 +141,14 @@ section-order = [
     "F401",
     "F403",
 ]
+
+[tool.yardang]
+title = "fsspec-pydantic"
+root = "README.md"
+pages = [
+    "docs/tutorial.md",
+    "docs/how-to-validate.md",
+    "docs/reference.md",
+    "docs/explanation.md",
+]
+use-autoapi = false
